@@ -1,10 +1,16 @@
 name = "Assignments"
 uuid = "ce789c49-2dd1-4993-9489-1e087343de44"
-authors = ["pg"]
 version = "0.1.0"
+authors = ["pg"]
 
 [deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PythonPlot = "274fc56d-3b97-40fa-a1cd-1b4a50311bf9"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+
+[compat]
+CairoMakie = "0.15.13"
+PythonPlot = "1.0.8"

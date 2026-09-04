@@ -97,13 +97,22 @@ function reward(arm::Int, means::Vector{Float64})
     rand(d)
 end
 
-function update!(arm::Int, reward::Float64, draws::Vector{Int}, avgrewards::Vector{Float64})
+function update_sample_avg!(arm::Int, reward::Float64, draws::Vector{Int}, avgrewards::Vector{Float64})
     @assert arm <= length(draws)
     @assert length(draws) == length(avgrewards)
 
     draws[arm] += 1
-    avgrewards[arm] = (avgrewards[arm]*(draws[arm] - 1) + reward) / draws[arm]    
+    avgrewards[arm] = (avgrewards[arm]*(draws[arm] - 1) + reward) / draws[arm]
 end
+
+function update_step_size!(arm::Int, reward::Float64, draws::Vector{Int}, avgrewards::Vector{Float64}, α::Float64)
+    @assert arm <= length(draws)
+    @assert length(draws) == length(avgrewards)
+
+    draws[arm] += 1
+    avgrewards[arm] += α * (reward - avgrewards[arm])
+end
+
 
 function final()
     t = 1000
@@ -115,7 +124,7 @@ function final()
     avgrewards = [reward(j, means) for j in 1:K]
     draws = ones(Int, K)
 
-    for i in 1:t
+    for _ in 1:t
         j = choose(avgrewards, eps)
         r = reward(j, means)
         update!(j, r, draws, avgrewards)

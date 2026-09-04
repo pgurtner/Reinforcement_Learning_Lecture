@@ -8,11 +8,14 @@ end
 module T6
 using Random
 using Distributions
-using Plots
+using CairoMakie
 using ..T4
+using ..Utils
 
-function benchmark_bandits(eps::Float64, initialrewards::Vector{Float64} = zeros(Float64, 10))
-    K = length(initialrewards)
+@enum RewardUpdateType SampleAverage ConstantStepSize
+
+function benchmark_bandits(eps::Float64, initial_rewards::Vector{Float64} = zeros(Float64, 10), reward_update_type::RewardUpdateType = SampleAverage)
+    K = length(initial_rewards)
     T = 1000
     L = 2000
 
@@ -20,17 +23,21 @@ function benchmark_bandits(eps::Float64, initialrewards::Vector{Float64} = zeros
     fraction_optimal_choice = zeros(Float64, T)
 
     for _ in 1:L
-        avgrewards = copy(initialrewards)
+        avg_rewards = copy(initial_rewards)
         draws = zeros(Int, K)
-        means = [rand(Normal(0, 1)) for _ in 1:K]
+        means = rand(Normal(0, 1), K)
 
         rewards = zeros(Float64, T)
         choices = zeros(Int, T)
 
         for t in 1:T
-            j = T4.choose(avgrewards, eps)
+            j = T4.choose(avg_rewards, eps)
             r = T4.reward(j, means)
-            T4.update!(j, r, draws, avgrewards)
+            if reward_update_type == SampleAverage
+                T4.update_sample_avg!(j, r, draws, avg_rewards)
+            else
+                T4.update_step_size!(j, r, draws, avg_rewards, 0.1)
+            end
 
             rewards[t] = r
             choices[t] = j
@@ -39,14 +46,13 @@ function benchmark_bandits(eps::Float64, initialrewards::Vector{Float64} = zeros
         benchmark_rewards .+= rewards
 
         optimum = argmax(means)
-        optimal_choices = [(j == optimum) for j in choices]
-        fraction_optimal_choice .+= convert.(Float64, optimal_choices)
+        fraction_optimal_choice .+= (choices .== optimum)
     end
 
     benchmark_rewards ./= L
     fraction_optimal_choice ./= L
 
-    return [benchmark_rewards, fraction_optimal_choice]
+    return benchmark_rewards, fraction_optimal_choice
 end
 
 function final()
@@ -54,27 +60,42 @@ function final()
     b1, f1 = benchmark_bandits(0.1)
     b2, f2 = benchmark_bandits(0.01)
 
-    plot([b0 b1 b2], label=["0.0" "0.1" "0.01"])
+    fig1, ax1 = Utils.make_GL_plot("Rewards")
+    lines!(ax1, 1:length(b0), b0, label="0.0")
+    lines!(ax1, 1:length(b1), b1, label="0.1")
+    lines!(ax1, 1:length(b2), b2, label="0.01")
+    axislegend(position = :rb)
+    display(fig1)
 
-    #plot([f0 f1 f2], label=["0.0" "0.1" "0.01"])
+    fig2, ax2 = Utils.make_GL_plot("% optimal action")
+    lines!(ax2, 1:length(f0), f0, label="0.0")
+    lines!(ax2, 1:length(f1), f1, label="0.1")
+    lines!(ax2, 1:length(f2), f2, label="0.01")
+    axislegend(position = :rb)
+    display(fig2)
 end
 
 end
 
 module T8
 using ..T6
-using Plots
+using CairoMakie
+using ..Utils
 
 function final()
-    initial_rewards = fill(5.0, 10)
-    b0, f0 = T6.benchmark_bandits(0.0, initial_rewards)
-    b1, f1 = T6.benchmark_bandits(0.1, initial_rewards)
+    b0, f0 = T6.benchmark_bandits(0.0, fill(5.0, 10), T6.ConstantStepSize)
+    b1, f1 = T6.benchmark_bandits(0.1, fill(0.0, 10), T6.ConstantStepSize)
 
-    #= TODO: optimality ratios are fine, 0.1 is better than 0.0 but for some reason
-             0.0 has better rewards than 0.1. Something is broken as 0.1 should easily
-             surpass it with noteworthily higher optimal hit ratios
-    =#
-    plot([b0 b1], label=["0.0" "0.1"])
-    #plot([f0 f1], label=["0.0" "0.1"])    
+    # fig1, ax1 = Utils.make_GL_plot("Rewards")
+    # lines!(ax1, 1:length(b0), b0, label="optimistic greedy")
+    # lines!(ax1, 1:length(b1), b1, label="realistic, eps-greedy")
+    # axislegend(position = :rb)
+    # display(fig1)
+
+    fig2, ax2 = Utils.make_GL_plot("% optimal action")
+    lines!(ax2, 1:length(f0), f0, label="optimistic greedy")
+    lines!(ax2, 1:length(f1), f1, label="realistic, eps-greedy")
+    axislegend(position = :rb)
+    display(fig2)
 end
 end
